@@ -274,13 +274,13 @@ class ExecutionHandler:
 
         row = df.loc[order.timestamp]
 
-        if order.order_type == "MARKET":
+        if order.order_type == OrderType.MARKET:
             # Use close price if trade_on_close, otherwise open
             if self.config.trade_on_close:
                 return row["close"]
             return row["open"]
 
-        if order.order_type == "LIMIT":
+        if order.order_type == OrderType.LIMIT:
             # For limit orders, check if limit price would have been filled
             if order.price is None:
                 return None
@@ -295,7 +295,7 @@ class ExecutionHandler:
 
             return None  # Limit not hit
 
-        if order.order_type == "STOP":
+        if order.order_type == OrderType.STOP:
             # For stop orders
             if order.price is None:
                 return None

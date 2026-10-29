@@ -1,3 +1,5 @@
+> Historical design note. Descriptions, targets and example results below are not independently validated capability or performance claims. See the root README.md and AUDIT.md for the tested scope and limitations.
+
 # Stock Deepseeker 高级功能使用指南
 
 ## 🎯 新增增强功能

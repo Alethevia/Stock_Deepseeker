@@ -1,3 +1,5 @@
+> Historical design note. Descriptions, targets and example results below are not independently validated capability or performance claims. See the root README.md and AUDIT.md for the tested scope and limitations.
+
 # Forex.com MT5外汇交易指南
 
 ## 🎯 系统配置

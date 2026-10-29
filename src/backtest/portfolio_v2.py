@@ -248,7 +248,9 @@ class PortfolioV2:
             if symbol in self.positions:
                 self.positions[symbol].update_price(price)
 
-        # Record equity point
+        # Replace today's snapshot after fills/final liquidation instead of duplicating it.
+        if self.equity_history and self.equity_history[-1]['date'] == date:
+            self.equity_history.pop()
         self.equity_history.append({
             "date": date,
             "cash": self.cash,
@@ -296,10 +298,10 @@ class PortfolioV2:
                     timestamp=date,
                     symbol=symbol,
                     quantity=abs(position.quantity),
-                    fill_price=position.last_price,
-                    commission=0.0,  # No commission on forced close
-                    slippage=0.0,
-                    direction="SELL" if position.quantity > 0 else "BUY"
+                    price=position.last_price,
+                    commission=abs(position.quantity) * position.last_price * self.commission_rate,
+                    slippage=abs(position.quantity) * position.last_price * self.slippage_rate,
+                    side="SELL" if position.quantity > 0 else "BUY"
                 )
                 self.update_fill(fill)
 

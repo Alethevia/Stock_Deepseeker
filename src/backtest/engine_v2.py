@@ -389,7 +389,7 @@ class BacktestEngineV2:
             symbol=signal.symbol,
             order_type="MARKET",
             quantity=quantity,
-            direction="BUY" if quantity > 0 else "SELL",
+            side="BUY" if quantity > 0 else "SELL",
             price=execution_price,
         )
 
@@ -532,6 +532,12 @@ class BacktestEngineV2:
                 elif event.event_type == EventType.FILL:
                     self._process_fill_event(event)
 
+            # Record closing equity after all of today's fills and costs.
+            self.portfolio.update_prices(date, {
+                symbol: frame.loc[date, 'close']
+                for symbol, frame in self.price_data.items() if date in frame.index
+            })
+
             # Log progress
             if date.day == 1 or date == trading_dates[-1]:
                 logger.info(
@@ -548,6 +554,7 @@ class BacktestEngineV2:
         # Close all positions at final prices
         if self.portfolio:
             self.portfolio.close_all_positions(self.current_date)
+            self.portfolio.update_prices(self.current_date, {})
 
     def _process_order_event(self, event: OrderEvent) -> None:
         """

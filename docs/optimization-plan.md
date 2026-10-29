@@ -1,3 +1,5 @@
+> Historical design note. Descriptions, targets and example results below are not independently validated capability or performance claims. See the root README.md and AUDIT.md for the tested scope and limitations.
+
 # AI优化方案 - 2025最新技术
 
 ## 📊 当前系统评估

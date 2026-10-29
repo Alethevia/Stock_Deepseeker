@@ -1,3 +1,5 @@
+> Historical design note. Descriptions, targets and example results below are not independently validated capability or performance claims. See the root README.md and AUDIT.md for the tested scope and limitations.
+
 # Stock Deepseeker 升级改进方案
 # 提升收益率、降低回撤的关键优化点
 

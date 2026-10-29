@@ -2,13 +2,13 @@
 """
 一键回测脚本 - Stock Deepseeker
 
-真正可运行的回测示例，使用真实Yahoo Finance数据。
-这是一个完整的端到端示例，展示了项目的实际能力。
+研究示例：默认请求Yahoo Finance；--mock显式使用人工数据。
+数据获取失败会报错，不会自动切换到人工行情。
 
 用法:
-    python run_backtest.py                    # 运行默认回测
-    python run_backtest.py --symbols AAPL MSFT  # 自定义股票
-    python run_backtest.py --help             # 查看帮助
+    python scripts/run_backtest.py                    # 运行默认回测
+    python scripts/run_backtest.py --symbols AAPL MSFT  # 自定义股票
+    python scripts/run_backtest.py --help             # 查看帮助
 """
 
 import sys
@@ -18,9 +18,10 @@ from typing import Dict, List
 import pandas as pd
 import numpy as np
 import argparse
+import hashlib
 
 # 添加项目路径
-project_root = Path(__file__).parent
+project_root = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(project_root))
 
 from src.backtest.engine_v2 import BacktestEngineV2, BacktestConfig, Strategy
@@ -97,7 +98,7 @@ class SimpleMovingAverageCrossover(Strategy):
                             timestamp=date,
                             symbol=symbol,
                             signal_type='LONG',
-                            strength=1.0,
+                            strength=self.position_size,
                             metadata={
                                 'reason': 'golden_cross',
                                 'fast_ma': fast_ma,
@@ -153,17 +154,18 @@ def generate_mock_data(
     dates = pd.bdate_range(start=start_date, end=end_date)
 
     # 生成随机游走价格，带有轻微上升趋势
-    np.random.seed(hash(symbol) % 2**32)  # 每个股票有不同的种子
-    returns = np.random.randn(len(dates)) * 0.02 + 0.0003  # 年化约7.5%
+    seed = int.from_bytes(hashlib.sha256(symbol.encode()).digest()[:4], "big")
+    rng = np.random.default_rng(seed)
+    returns = rng.standard_normal(len(dates)) * 0.02 + 0.0003  # 年化约7.5%
     prices = initial_price * (1 + returns).cumprod()
 
     # 生成OHLCV数据
     df = pd.DataFrame({
-        'open': prices * (1 + np.random.randn(len(dates)) * 0.005),
-        'high': prices * (1 + np.abs(np.random.randn(len(dates))) * 0.01),
-        'low': prices * (1 - np.abs(np.random.randn(len(dates))) * 0.01),
+        'open': prices * (1 + rng.standard_normal(len(dates)) * 0.005),
+        'high': prices * (1 + np.abs(rng.standard_normal(len(dates))) * 0.01),
+        'low': prices * (1 - np.abs(rng.standard_normal(len(dates))) * 0.01),
         'close': prices,
-        'volume': np.random.randint(1000000, 10000000, len(dates)),
+        'volume': rng.integers(1000000, 10000000, len(dates)),
     }, index=dates)
 
     # 确保high >= low
@@ -232,11 +234,9 @@ def fetch_data(
                 price_data[symbol] = data
                 print(f"✓ ({len(data.data)} 行)")
             except Exception as e:
-                print(f"✗ 失败: {e}")
-                print(f"   尝试使用模拟数据作为后备...")
-                data = generate_mock_data(symbol, fetch_start, end_date)
-                price_data[symbol] = data
-                print(f"   ✓ 使用模拟数据 ({len(data.data)} 行)")
+                raise RuntimeError(
+                    f"真实行情获取失败 ({symbol})；未运行回测。若要人工演示，请显式添加 --mock。"
+                ) from e
 
     if not price_data:
         raise ValueError("未能获取任何数据，请检查网络连接或股票代码")
@@ -261,12 +261,12 @@ def print_results(results: Dict):
 
     if portfolio_stats:
         print(f"最终资金: ${portfolio_stats.get('final_value', 0):,.2f}")
-        print(f"总收益: ${portfolio_stats.get('total_return_abs', 0):,.2f}")
-        print(f"总收益率: {portfolio_stats.get('total_return_pct', 0):.2%}")
+        print(f"总收益: ${portfolio_stats.get('final_value', 0) - config.initial_capital if config else 0:,.2f}")
+        print(f"总收益率: {portfolio_stats.get('total_return', 0):.2%}")
 
     # 交易统计
     print("\n【交易统计】")
-    stats = results.get('stats', {})
+    stats = results.get('statistics', {})
     print(f"总事件数: {stats.get('total_events', 0)}")
     print(f"市场事件: {stats.get('market_events', 0)}")
     print(f"信号事件: {stats.get('signal_events', 0)}")
@@ -291,7 +291,7 @@ def print_results(results: Dict):
         if len(equity) > 0:
             # equity可能是Series或DataFrame，需要提取值
             if hasattr(equity, 'values'):
-                values = equity.values if equity.ndim == 1 else equity.values[:, 0]
+                values = equity.values if equity.ndim == 1 else equity['total_value'].values
                 print(f"起始值: ${values[0]:,.2f}")
                 print(f"最终值: ${values[-1]:,.2f}")
                 print(f"最高值: ${values.max():,.2f}")
@@ -430,7 +430,7 @@ def main():
         print("\n💡 提示:")
         print("   - 这是一个简单的双均线策略示例")
         print("   - 结果仅供研究和学习，不构成投资建议")
-        print("   - 可以修改参数重新运行: python run_backtest.py --help")
+        print("   - 可以修改参数重新运行: python scripts/run_backtest.py --help")
 
     except Exception as e:
         print(f"\n❌ 回测失败: {e}")

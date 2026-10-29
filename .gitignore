@@ -63,3 +63,5 @@ Thumbs.db
 *.sqlite
 *.csv
 *.xlsx
+
+node_modules/
